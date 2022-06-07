@@ -1,10 +1,11 @@
 const express = require("express");
 const authRouter = express.Router();
 const passport = require("passport");
+require("dotenv").config();
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const { getDbInstance } = require("../db");
 const ObjectId = require("mongodb").ObjectID;
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 const { generateToken, verifyToken } = require("../middleware/auth");
 
 passport.use(
@@ -64,9 +65,9 @@ authRouter.get(
   }),
   (req, res) => {
     console.log(req);
-    const token = generateToken({id:req.user._id});
-    
-    res.cookie("token", token).redirect("http://localhost:3000/info");
+    const token = generateToken({ id: req.user._id });
+
+    res.cookie("token", token).redirect(process.env.URL_CLIENT+"/info");
   }
 );
 
@@ -74,9 +75,14 @@ authRouter.get("/failure", (req, res) => {
   res.status(401).send("login fail");
 });
 authRouter.get("/success", verifyToken, async (req, res) => {
-    console.log("verify", req.verify)
-    const user = await (await getDbInstance()).collection("users").findOne({"_id": new ObjectId(req.verify.id)});
-    console.log("user", user);
+  console.log("verify", req.verify);
+  const user = await (await getDbInstance())
+    .collection("users")
+    .findOne({ _id: new ObjectId(req.verify.id) });
+  console.log("user", user);
+  res.header("Access-Control-Allow-Origin", process.env.URL_CLIENT);
+  res.header('Access-Control-Allow-Credentials', true);
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   res.status(200).send(user);
 });
 
