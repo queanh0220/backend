@@ -29,7 +29,7 @@ const upload = multer({
   limits: { fileSize: maxSize },
   fileFilter: function (req, file, callback) {
     console.log("filter", file);
-    if (file.originalname.startsWith("170")) {
+    if (file.originalname.startsWith("")) {
       return callback(null, true);
     }
     callback(new Error("File name not start with Napa"));
@@ -37,7 +37,7 @@ const upload = multer({
 });
 
 uploadRouter.post("/", (req, res) => {
-  const up = upload.single("myFile");
+  const up = upload.single("file");
   up(req, res, async (err) => {
     console.log("error upload file", err);
     if (err) {
@@ -50,15 +50,17 @@ uploadRouter.post("/", (req, res) => {
       res.send("Please upload a file");
       return;
     }
-    const resize = await sharp(file.path)
-      .resize(170, 120)
-      .toFile(`./resizes/170x120-${file.filename}`);
-
-    console.log("resize", resize);
+    const img = fs.readFileSync(req.file.path);
+    const encode = img.toString('base64');
+    file.imgBuffer = new Buffer(encode, 'base64');
     const result = await (await getDbInstance())
       .collection("uploads")
-      .insertOne({ ...file, pathResize: `./resizes/170x120-${file.filename}` });
-    res.send({ fileId: result.insertedId });
+      .insertOne(file);
+    const value = result.insertedId;
+    res.send({
+      link: `http://localhost:3000/upload/${value}`,
+      "resize-link": `http://localhost:3000/download/resize/${value}`,
+    });
   });
 });
 
@@ -72,10 +74,19 @@ uploadRouter.post(
       res.send("Please upload a file");
       return;
     }
+
     const result = await (await getDbInstance())
       .collection("uploads")
       .insertMany(files);
-    res.send(result.insertedIds);
+    const value = Object.values(result.insertedIds).map((item) => {
+      return {
+        link: `http://localhost:3000/${item}`,
+        "resize-link": `http://localhost:3000/download/resize/${item}`,
+      };
+    })
+    res.send(
+      value
+    );
   }
 );
 
@@ -87,10 +98,10 @@ uploadRouter.get("/:id", async (req, res) => {
     .collection("uploads")
     .findOne({ _id: new ObjectId(id) });
   //step 3: doc file va gui ve client
-  console.log(meta);
-  const dir = `./uploads/${meta.filename}`;
-  console.log(dir);
-  res.download(dir, meta.originalname);
+  // const dir = `./uploads/${meta.filename}`;
+  // console.log(dir);
+  res.contentType(meta.mimetype)
+  res.send(meta.imgBuffer.buffer);
   //  res.send({fileId: result.insertedId});
 });
 

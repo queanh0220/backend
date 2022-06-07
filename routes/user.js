@@ -15,6 +15,7 @@ userRouter.get("/", async (req, res) => {
   res.status(200).json(data).end()
 }); 
 
+
 userRouter.get("/:id", async (req, res) => {
   try {
     (await getDbInstance()).collection("users").findOne({"_id": new ObjectId(req.params.id)}, (err, result) => {
